@@ -27,13 +27,15 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction, v: u64) {
 
     // If there is an optional extra value (for instance, when sending to a contract)
     // we should include it in the sum.
-    let value = composer.add_input(BlsScalar::from(v));
-    sum = composer.add(
-        (BlsScalar::one(), sum),
-        (-BlsScalar::one(), value),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-    );
+    if v > 0 {
+        let value = composer.add_input(BlsScalar::from(v));
+        sum = composer.add(
+            (BlsScalar::one(), sum),
+            (-BlsScalar::one(), value),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+    }
 
     let fee = *tx.fee();
 
