@@ -17,6 +17,9 @@ pub fn send_to_contract_transparent_gadget(
         gadgets::nullifier(composer, input);
     });
 
+    // Secret key knowledge
+    // TODO: insert `ecc_gate` function from PLONK
+
     // Commitment knowledge + range proof
     tx.inputs().iter().for_each(|input| {
         match input.note() {
