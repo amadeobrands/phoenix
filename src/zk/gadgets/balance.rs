@@ -3,7 +3,7 @@ use crate::{BlsScalar, Transaction, TransactionItem};
 use dusk_plonk::constraint_system::StandardComposer;
 
 /// Prove that the amount inputted equals the amount outputted
-pub fn balance(composer: &mut StandardComposer, tx: &Transaction) {
+pub fn balance(composer: &mut StandardComposer, tx: &Transaction, v: u64) {
     let mut sum = composer.zero_var;
     for item in tx.inputs().iter() {
         let value = composer.add_input(BlsScalar::from(item.value()));
@@ -24,6 +24,16 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction) {
             BlsScalar::zero(),
         );
     }
+
+    // If there is an optional extra value (for instance, when sending to a contract)
+    // we should include it in the sum.
+    let value = composer.add_input(BlsScalar::from(v));
+    sum = composer.add(
+        (BlsScalar::one(), sum),
+        (-BlsScalar::one(), value),
+        BlsScalar::zero(),
+        BlsScalar::zero(),
+    );
 
     let fee = *tx.fee();
 
