@@ -50,5 +50,14 @@ pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: 
     });
 
     // Inputs - outputs = 0
-    gadgets::balance(composer, tx, v);
+    let sum = gadgets::balance(composer, tx);
+    let value = composer.add_input(BlsScalar::from(v));
+    sum = composer.add(
+        (-BlsScalar::one(), sum),
+        (BlsScalar::one(), composer.zero_var),
+        BlsScalar::zero(),
+        BlsScalar::from(v),
+    );
+
+    composer.constrain_to_zero(sum, BlsScalar::zero(), BlsScalar::zero());
 }

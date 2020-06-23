@@ -1,9 +1,15 @@
 use crate::{BlsScalar, Transaction, TransactionItem};
 
-use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::constraint_system::{StandardComposer, Variable};
 
-/// Prove that the amount inputted equals the amount outputted
-pub fn balance(composer: &mut StandardComposer, tx: &Transaction, v: u64) {
+/// Prove that the amount inputted equals the amount outputted.
+/// This gadget adds constraints for each input value, and each output value.
+/// The remaining value is then returned as a [`Variable`], which the caller can
+/// constrain to zero at their own discretion. The reason we don't do it inside of
+/// the gadget, is because there are different scenarios in which a rest value needs
+/// to be constrained before constraining the entire sum to zero, and each case does
+/// it slightly differently.
+pub fn balance(composer: &mut StandardComposer, tx: &Transaction) -> Variable {
     let mut sum = composer.zero_var;
     for item in tx.inputs().iter() {
         let value = composer.add_input(BlsScalar::from(item.value()));
@@ -25,18 +31,6 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction, v: u64) {
         );
     }
 
-    // If there is an optional extra value (for instance, when sending to a contract)
-    // we should include it in the sum.
-    if v > 0 {
-        let value = composer.add_input(BlsScalar::from(v));
-        sum = composer.add(
-            (BlsScalar::one(), sum),
-            (-BlsScalar::one(), value),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
-    }
-
     let fee = *tx.fee();
 
     let value = composer.add_input(BlsScalar::from(fee.value()));
@@ -47,7 +41,7 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction, v: u64) {
         BlsScalar::zero(),
     );
 
-    composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
+    sum
 }
 
 #[cfg(test)]
