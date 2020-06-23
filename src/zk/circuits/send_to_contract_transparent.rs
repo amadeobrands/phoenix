@@ -51,7 +51,6 @@ pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: 
 
     // Inputs - outputs = 0
     let sum = gadgets::balance(composer, tx);
-    let value = composer.add_input(BlsScalar::from(v));
     sum = composer.add(
         (-BlsScalar::one(), sum),
         (BlsScalar::one(), composer.zero_var),
