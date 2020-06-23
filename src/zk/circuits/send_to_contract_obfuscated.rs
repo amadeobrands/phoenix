@@ -1,13 +1,14 @@
-use crate::{db, zk::gadgets, NoteVariant, Transaction, TransactionItem};
+use crate::{db, zk::gadgets, NoteVariant, Transaction, TransactionItem, TransactionOutput};
 
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::Proof;
 
-/// This gadget constructs the circuit for a "Send To Contract Transparent" transaction.
-pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: &Transaction) {
-    // Define an accumulator, which will hold the amount being sent to the contract.
-    let v: u64 = 0;
-
+/// This gadget constructs the circuit for a "Send To Contract Obfuscated" transaction.
+pub fn send_to_contract_obfuscated_gadget(
+    composer: &mut StandardComposer,
+    tx: &Transaction,
+    m: &TransactionOutput,
+) {
     // Inputs
     let db = db::Db::default();
     tx.inputs().iter().for_each(|input| {
@@ -29,9 +30,6 @@ pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: 
             }
             _ => {}
         }
-
-        // Tally up input value into `v`
-        v += input.value();
     });
 
     // Outputs
@@ -44,19 +42,22 @@ pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: 
             }
             _ => {}
         }
-
-        // Subtract output value from `v`
-        v -= output.value();
     });
+
+    // Prove commitment knowledge of M
+    gadgets::commitment(composer, m);
 
     // Inputs - outputs = 0
     let sum = gadgets::balance(composer, tx);
+    let value = composer.add_input(BlsScalar::from(m.value));
     sum = composer.add(
-        (-BlsScalar::one(), sum),
-        (BlsScalar::one(), composer.zero_var),
+        (BlsScalar::one(), sum),
+        (-BlsScalar::one(), value),
         BlsScalar::zero(),
-        BlsScalar::from(v),
+        BlsScalar::zero(),
     );
 
     composer.constrain_to_zero(sum, BlsScalar::zero(), BlsScalar::zero());
+
+    // TODO: Prove knowledge of encrypted m.value and m.blinding_factor
 }
