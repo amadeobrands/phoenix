@@ -1,17 +1,17 @@
-use crate::{zk::gadgets, Transaction};
-
-use dusk_plonk::constraint_system::{Proof, StandardComposer};
+use crate::{db, BlsScalar, zk::gadgets, NoteVariant, Transaction, TransactionItem};
+use kelvin::Blake2b;
+use dusk_plonk::constraint_system::{StandardComposer};
 
 fn send_gadget(composer: &mut StandardComposer, tx: &Transaction) {
     
-    let db = db::Db::default();
+    let db = db::Db::<Blake2b>::default();
     tx.inputs().iter().for_each(|tx_input| {
         // Merkle opening, preimahge knowledge
         // and nullifier.
         // TODO: get branch
-        gadgets::merkle(composer, branch, tx_input);
-        gadget::premia(composer, tx_input);
-        gadget::preimage(composer, tx_input);
+        // gadgets::merkle(composer, branch, tx_input);
+        gadgets::input_preimage(composer, tx_input);
+        gadgets::nullifier(composer, tx_input);
         //gadget::secret_key();
     
 
@@ -19,8 +19,8 @@ fn send_gadget(composer: &mut StandardComposer, tx: &Transaction) {
         // for inputs. If the contained note is 
         // obfuscated,it will also include statements 
         // about the commitment preimage, and a range proof.
-        match input.note() {
-            NoteVariant::Obfuscated => {
+        match tx_input.note() {
+            NoteVariant::Obfuscated(_) => {
                 gadgets::commitment(composer, tx_input);
                 gadgets::range(composer, tx_input);
             },
@@ -33,18 +33,18 @@ fn send_gadget(composer: &mut StandardComposer, tx: &Transaction) {
     // obfuscated,it will also include statements 
     // about the commitment preimage, and a range proof.
     tx.outputs().iter().for_each(|tx_output| {
-        match output.note() {
-            NoteVariant::Obfuscated => {
+        match tx_output.note() {
+            NoteVariant::Obfuscated(_) => {
                 gadgets::commitment(composer, tx_output);
                 gadgets::range(composer, tx_output);
             },
             _ => {},
         }
-    }
+    });
 
     // Inputs - outputs = 0
     let sum = gadgets::balance(composer, tx);
-    composer.constrain_to_zero(sum, BlsScalar::zero(), BlsScalar::zero());
+    composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
 
 
 }

@@ -1,5 +1,5 @@
-use crate::{db, zk::gadgets, NoteVariant, Transaction, TransactionItem, TransactionOutput};
-
+use crate::{db, BlsScalar, zk::gadgets, NoteVariant, Transaction, TransactionItem, TransactionOutput};
+use kelvin::Blake2b;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::Proof;
 
@@ -10,11 +10,11 @@ pub fn send_to_contract_obfuscated_gadget(
     m: &TransactionOutput,
 ) {
     // Inputs
-    let db = db::Db::default();
+    let db = db::Db::<Blake2b>::default();
     tx.inputs().iter().for_each(|input| {
         // Merkle openings + preimage knowledge + nullifier
         // TODO: get branch
-        gadgets::merkle(composer, branch, input);
+        // gadgets::merkle(composer, branch, input);
         gadgets::input_preimage(composer, input);
         gadgets::nullifier(composer, input);
 
@@ -48,7 +48,7 @@ pub fn send_to_contract_obfuscated_gadget(
     gadgets::commitment(composer, m);
 
     // Inputs - outputs = 0
-    let sum = gadgets::balance(composer, tx);
+    let mut sum = gadgets::balance(composer, tx);
     let value = composer.add_input(BlsScalar::from(m.value));
     sum = composer.add(
         (BlsScalar::one(), sum),
@@ -57,7 +57,7 @@ pub fn send_to_contract_obfuscated_gadget(
         BlsScalar::zero(),
     );
 
-    composer.constrain_to_zero(sum, BlsScalar::zero(), BlsScalar::zero());
+    composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
 
     // TODO: Prove knowledge of encrypted m.value and m.blinding_factor
 }
