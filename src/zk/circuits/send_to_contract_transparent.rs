@@ -1,7 +1,7 @@
-use crate::{db, BlsScalar, zk::gadgets, NoteVariant, Transaction, TransactionItem};
-use kelvin::Blake2b;
+use crate::{db, zk::gadgets, BlsScalar, NoteVariant, Transaction, TransactionItem};
+
 use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::proof_system::Proof;
+use kelvin::Blake2b;
 
 /// This gadget constructs the circuit for a "Send To Contract Transparent" transaction.
 pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: &Transaction) {
