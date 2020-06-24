@@ -46,7 +46,7 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        commitment(&mut composer, input.note(), Some(&vk));
+        commitment(&mut composer, &input);
         composer.add_dummy_constraints();
         // NOTE: this is here to make the test pass, as one set of dummy constraints
         // isn't enough when no extra gates are added. It should be removed once the
