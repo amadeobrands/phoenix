@@ -1,4 +1,6 @@
-use crate::{db, zk::gadgets, BlsScalar, NoteVariant, Transaction, TransactionItem};
+use crate::{
+    db, zk::gadgets, BlsScalar, NoteVariant, Transaction, TransactionItem, TransactionOutput,
+};
 
 use dusk_plonk::constraint_system::StandardComposer;
 use kelvin::Blake2b;
@@ -49,8 +51,16 @@ pub fn send_to_contract_transparent_gadget(composer: &mut StandardComposer, tx: 
         v -= output.value();
     });
 
+    // Subtract fee value from `v`
+    v -= tx.fee().value();
+
     // Inputs - outputs = 0
-    let mut sum = gadgets::balance(composer, tx);
+    let mut outputs: Vec<TransactionOutput> = vec![];
+    tx.outputs().iter().for_each(|output| {
+        outputs.push(*output);
+    });
+    outputs.push(*tx.fee());
+    let mut sum = gadgets::balance(composer, tx.inputs(), &outputs);
     sum = composer.add(
         (-BlsScalar::one(), sum),
         (BlsScalar::one(), composer.zero_var),

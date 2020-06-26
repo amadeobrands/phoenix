@@ -52,14 +52,13 @@ pub fn send_to_contract_obfuscated_gadget(
     gadgets::range(composer, m);
 
     // Inputs - outputs = 0
-    let mut sum = gadgets::balance(composer, tx);
-    let value = composer.add_input(BlsScalar::from(m.value));
-    sum = composer.add(
-        (BlsScalar::one(), sum),
-        (-BlsScalar::one(), value),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-    );
+    let mut outputs: Vec<TransactionOutput> = vec![];
+    tx.outputs().iter().for_each(|output| {
+        outputs.push(*output);
+    });
+    outputs.push(*tx.fee());
+    outputs.push(*m);
+    let mut sum = gadgets::balance(composer, tx.inputs(), &outputs);
 
     composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
 

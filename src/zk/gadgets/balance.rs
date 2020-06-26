@@ -1,4 +1,4 @@
-use crate::{BlsScalar, Transaction, TransactionItem};
+use crate::{BlsScalar, TransactionInput, TransactionItem, TransactionOutput};
 
 use dusk_plonk::constraint_system::{StandardComposer, Variable};
 
@@ -9,9 +9,13 @@ use dusk_plonk::constraint_system::{StandardComposer, Variable};
 /// the gadget, is because there are different scenarios in which a rest value needs
 /// to be constrained before constraining the entire sum to zero, and each case does
 /// it slightly differently.
-pub fn balance(composer: &mut StandardComposer, tx: &Transaction) -> Variable {
+pub fn balance(
+    composer: &mut StandardComposer,
+    inputs: &[TransactionInput],
+    outputs: &[TransactionOutput],
+) -> Variable {
     let mut sum = composer.zero_var;
-    for item in tx.inputs().iter() {
+    for item in inputs.iter() {
         let value = composer.add_input(BlsScalar::from(item.value()));
         sum = composer.add(
             (BlsScalar::one(), sum),
@@ -21,7 +25,7 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction) -> Variable {
         );
     }
 
-    for item in tx.outputs().iter() {
+    for item in outputs.iter() {
         let value = composer.add_input(BlsScalar::from(item.value()));
         sum = composer.add(
             (BlsScalar::one(), sum),
@@ -31,23 +35,15 @@ pub fn balance(composer: &mut StandardComposer, tx: &Transaction) -> Variable {
         );
     }
 
-    let fee = *tx.fee();
-
-    let value = composer.add_input(BlsScalar::from(fee.value()));
-    sum = composer.add(
-        (BlsScalar::one(), sum),
-        (-BlsScalar::one(), value),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-    );
-
     sum
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{crypto, Note, NoteGenerator, SecretKey, Transaction, TransparentNote};
+    use crate::{
+        crypto, Note, NoteGenerator, SecretKey, Transaction, TransactionOutput, TransparentNote,
+    };
     use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
     use dusk_plonk::fft::EvaluationDomain;
     use merlin::Transcript;
@@ -86,7 +82,12 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        balance(&mut composer, &tx);
+        let mut outputs: Vec<TransactionOutput> = vec![];
+        tx.outputs().iter().for_each(|output| {
+            outputs.push(*output);
+        });
+        outputs.push(*tx.fee());
+        balance(&mut composer, tx.inputs(), &outputs);
 
         composer.add_dummy_constraints();
 
@@ -141,7 +142,12 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        balance(&mut composer, &tx);
+        let mut outputs: Vec<TransactionOutput> = vec![];
+        tx.outputs().iter().for_each(|output| {
+            outputs.push(*output);
+        });
+        outputs.push(*tx.fee());
+        balance(&mut composer, tx.inputs(), &outputs);
 
         composer.add_dummy_constraints();
 
