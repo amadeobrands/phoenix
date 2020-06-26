@@ -1,5 +1,6 @@
 use crate::{
-    db, zk::gadgets, BlsScalar, NoteVariant, Transaction, TransactionItem, TransactionOutput,
+    db, zk::gadgets, BlsScalar, NoteVariant, PublicKey, Transaction, TransactionItem,
+    TransactionOutput,
 };
 
 use dusk_plonk::constraint_system::StandardComposer;
@@ -9,16 +10,20 @@ use kelvin::Blake2b;
 pub fn withdraw_from_contract_obfuscated_gadget(
     composer: &mut StandardComposer,
     tx: &Transaction,
-    m: &TransactionOutput,
+    pk: &PublicKey,
+    remainder: &TransactionOutput,
 ) {
-    // Prove the knowledge of commitment to m
-    gadgets::commitment(composer, m);
+    // Fetch M
+    // TODO: fetch M
+    // Prove knowledge of commitment to m
     // Prove message m is in range
-    gadgets::range(composer, m);
 
-    // Prove the knowledge of commitment to remainder
-
-    // Prove remainder is in range
+    if remainder.value > 0 {
+        // Prove the knowledge of commitment to remainder
+        gadgets::commitment(composer, remainder);
+        // Prove message remainder is in range
+        gadgets::range(composer, remainder);
+    }
 
     // Outputs
     tx.outputs().iter().for_each(|tx_output| {
@@ -32,17 +37,20 @@ pub fn withdraw_from_contract_obfuscated_gadget(
         }
     });
 
-    // Message - remiander - output = 0
-    let mut sum = gadgets::balance(composer, tx);
-    let value = composer.add_input(BlsScalar::from(m.value));
-    sum = composer.add(
-        (BlsScalar::one(), sum),
-        (-BlsScalar::one(), value),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-    );
+    // Message - remainder - output = 0
+    let mut outputs: Vec<TransactionOutput> = vec![];
+    tx.outputs().iter().for_each(|output| {
+        outputs.push(*output);
+    });
+    outputs.push(*tx.fee());
+    if remainder.value > 0 {
+        outputs.push(*remainder);
+    }
 
-    composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
+    // TODO: use M as inputs
+    // let mut sum = gadgets::balance(composer, m, &outputs);
+
+    // composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
 }
 
 #[cfg(test)]
@@ -54,7 +62,6 @@ mod tests {
     use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
     use dusk_plonk::fft::EvaluationDomain;
     use merlin::Transcript;
-
 
     #[test]
     fn test_withdraw_obfuscated() {
@@ -79,8 +86,7 @@ mod tests {
         let pk = sk.public_key();
         let value = 2;
         let (note, blinding_factor) = ObfuscatedNote::output(&pk, value);
-        tx.push_output(note.to_transaction_output(value, blinding_factor, pk))
-            .unwrap();
+        let remainder = note.to_transaction_output(value, blinding_factor, pk);
 
         let sk = SecretKey::default();
         let pk = sk.public_key();
@@ -90,7 +96,7 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        withdraw_from_contract_obfuscated_gadget(&mut composer, &tx, &m);
+        withdraw_from_contract_obfuscated_gadget(&mut composer, &tx, &pk, &remainder);
 
         composer.add_dummy_constraints();
 
