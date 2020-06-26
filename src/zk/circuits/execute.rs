@@ -61,5 +61,3 @@ pub fn execute_gadget(composer: &mut StandardComposer, tx: &Transaction) {
 
     composer.constrain_to_constant(sum, BlsScalar::zero(), BlsScalar::zero());
 }
-
-£te

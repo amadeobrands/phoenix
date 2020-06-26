@@ -3,7 +3,7 @@ use kelvin::Blake2b;
 use dusk_plonk::constraint_system::StandardComposer;
 
 
-/// This gadget constructs the circuit for a "Send To Contract Obfuscated" transaction.
+/// This gadget constructs the circuit for a "Withdraw from Obfuscated" transaction.
 pub fn withdraw_from_contract_obfuscated_gadget(
     composer: &mut StandardComposer,
     tx: &Transaction,
