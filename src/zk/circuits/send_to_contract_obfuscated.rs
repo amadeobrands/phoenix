@@ -46,6 +46,8 @@ pub fn send_to_contract_obfuscated_gadget(
 
     // Prove commitment knowledge of M
     gadgets::commitment(composer, m);
+    // Prove commitment of M is in range
+    gadgets::range(composer, m);
 
     // Inputs - outputs = 0
     let mut sum = gadgets::balance(composer, tx);
