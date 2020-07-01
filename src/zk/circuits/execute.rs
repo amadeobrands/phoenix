@@ -1,9 +1,13 @@
-use crate::{zk::gadgets, BlsScalar, Transaction, TransactionItem};
+use crate::{zk::gadgets, BlsScalar, Transaction, TransactionItem, TransactionOutput};
 
 use dusk_plonk::constraint_system::StandardComposer;
 
 /// This gadget constructs the circuit for an 'Execute' call on the DUSK token contract.
-pub fn execute_gadget(composer: &mut StandardComposer, tx: &Transaction) {
+pub fn execute_gadget(
+    composer: &mut StandardComposer,
+    tx: &Transaction,
+    crossover: &TransactionOutput,
+) {
     // Define an accumulator which we will use to prove that the sum of all inputs
     // equals the sum of all outputs.
     //
@@ -12,6 +16,7 @@ pub fn execute_gadget(composer: &mut StandardComposer, tx: &Transaction) {
     // the fee.
     let mut sum = composer.zero_var;
 
+    // Inputs
     tx.inputs().iter().for_each(|tx_input| {
         // Merkle opening, preimage knowledge
         // and nullifier.
@@ -36,6 +41,7 @@ pub fn execute_gadget(composer: &mut StandardComposer, tx: &Transaction) {
         );
     });
 
+    // Outputs
     tx.outputs().iter().for_each(|tx_output| {
         gadgets::commitment(composer, tx_output);
         gadgets::range(composer, tx_output);
@@ -49,6 +55,19 @@ pub fn execute_gadget(composer: &mut StandardComposer, tx: &Transaction) {
             BlsScalar::zero(),
         );
     });
+
+    // Crossover
+    if crossover.value() > 0 {
+        gadgets::commitment(composer, crossover);
+        gadgets::range(composer, crossover);
+        let value = composer.add_input(BlsScalar::from(crossover.value()));
+        sum = composer.add(
+            (BlsScalar::one(), sum),
+            (-BlsScalar::one(), value),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+    }
 
     let fee = *tx.fee();
 
@@ -95,8 +114,7 @@ mod tests {
         let pk = sk.public_key();
         let value = 2;
         let (note, blinding_factor) = TransparentNote::output(&pk, value);
-        tx.push_output(note.to_transaction_output(value, blinding_factor, pk))
-            .unwrap();
+        let crossover = note.to_transaction_output(value, blinding_factor, pk);
 
         let sk = SecretKey::default();
         let pk = sk.public_key();
@@ -106,7 +124,7 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        execute_gadget(&mut composer, &tx);
+        execute_gadget(&mut composer, &tx, &crossover);
 
         composer.add_dummy_constraints();
 
@@ -149,8 +167,7 @@ mod tests {
         let pk = sk.public_key();
         let value = 2;
         let (note, blinding_factor) = ObfuscatedNote::output(&pk, value);
-        tx.push_output(note.to_transaction_output(value, blinding_factor, pk))
-            .unwrap();
+        let crossover = note.to_transaction_output(value, blinding_factor, pk);
 
         let sk = SecretKey::default();
         let pk = sk.public_key();
@@ -160,7 +177,7 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        execute_gadget(&mut composer, &tx);
+        execute_gadget(&mut composer, &tx, &crossover);
 
         composer.add_dummy_constraints();
 

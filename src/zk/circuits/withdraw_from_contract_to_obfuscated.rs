@@ -96,7 +96,7 @@ mod tests {
 
         let mut composer = StandardComposer::new();
 
-        withdraw_from_contract_obfuscated_gadget(&mut composer, &tx, &pk, &remainder);
+        withdraw_from_contract_to_obfuscated_gadget(&mut composer, &tx, &pk, &remainder);
 
         composer.add_dummy_constraints();
 
